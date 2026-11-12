@@ -1,0 +1,52 @@
+state,state_name,fips,region_code,region_name
+AL,Alabama,1,HHS4,Region 4
+AK,Alaska,2,HHS10,Region 10
+AZ,Arizona,4,HHS9,Region 9
+AR,Arkansas,5,HHS6,Region 6
+CA,California,6,HHS9,Region 9
+CO,Colorado,8,HHS8,Region 8
+CT,Connecticut,9,HHS1,Region 1
+DE,Delaware,10,HHS3,Region 3
+DC,District of Columbia,11,HHS3,Region 3
+FL,Florida,12,HHS4,Region 4
+GA,Georgia,13,HHS4,Region 4
+HI,Hawaii,15,HHS9,Region 9
+ID,Idaho,16,HHS10,Region 10
+IL,Illinois,17,HHS5,Region 5
+IN,Indiana,18,HHS5,Region 5
+IA,Iowa,19,HHS7,Region 7
+KS,Kansas,20,HHS7,Region 7
+KY,Kentucky,21,HHS4,Region 4
+LA,Louisiana,22,HHS6,Region 6
+ME,Maine,23,HHS1,Region 1
+MD,Maryland,24,HHS3,Region 3
+MA,Massachusetts,25,HHS1,Region 1
+MI,Michigan,26,HHS5,Region 5
+MN,Minnesota,27,HHS5,Region 5
+MS,Mississippi,28,HHS4,Region 4
+MO,Missouri,29,HHS7,Region 7
+MT,Montana,30,HHS8,Region 8
+NE,Nebraska,31,HHS7,Region 7
+NV,Nevada,32,HHS9,Region 9
+NH,New Hampshire,33,HHS1,Region 1
+NJ,New Jersey,34,HHS2,Region 2
+NM,New Mexico,35,HHS6,Region 6
+NY,New York,36,HHS2,Region 2
+NC,North Carolina,37,HHS4,Region 4
+ND,North Dakota,38,HHS8,Region 8
+OH,Ohio,39,HHS5,Region 5
+OK,Oklahoma,40,HHS6,Region 6
+OR,Oregon,41,HHS10,Region 10
+PA,Pennsylvania,42,HHS3,Region 3
+RI,Rhode Island,44,HHS1,Region 1
+SC,South Carolina,45,HHS4,Region 4
+SD,South Dakota,46,HHS8,Region 8
+TN,Tennessee,47,HHS4,Region 4
+TX,Texas,48,HHS6,Region 6
+UT,Utah,49,HHS8,Region 8
+VT,Vermont,50,HHS1,Region 1
+VA,Virginia,51,HHS3,Region 3
+WA,Washington,53,HHS10,Region 10
+WV,West Virginia,54,HHS3,Region 3
+WI,Wisconsin,55,HHS5,Region 5
+WY,Wyoming,56,HHS8,Region 8
