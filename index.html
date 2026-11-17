@@ -1,7 +1,7 @@
 <!doctype html>
-<meta charset="utf-8" />
 <html lang="en">
   <head>
+    <meta charset="utf-8" />
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="https://d3js.org/topojson.v2.min.js"></script>
     <title>Youth suicide rates by HHS region</title>
@@ -18,6 +18,18 @@
       h1 {
         font-size: 22px;
       }
+      .map-tooltip {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+        background: rgba(20, 20, 20, 0.9);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-family: sans-serif;
+        font-size: 13px;
+        transition: opacity 0.15s ease;
+      }
     </style>
   </head>
   <body>
@@ -28,13 +40,40 @@
       </h1>
       <p>Comparing 3 race/ethnic groups</p>
       <p>Crude rate per 100,000 population per year. Source: CDC WONDER.</p>
-      <svg
-        id="map"
-        height="600"
-        width="900"
-        style="background: #fff; margin-top: 20px; outline: 2px solid #000000"
-      ></svg>
-      <div id="footnotes" style="margin-top: 20px">Footnotes go here.</div>
+      <div class="container" style="display: flex">
+        <svg
+          id="map"
+          height="600"
+          width="900"
+          style="background: #fff; margin-top: 20px"
+        ></svg>
+        <div
+          id="filters"
+          style="
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            margin-left: 48px;
+          "
+        >
+          <div id="filter-period" class="filter-group">
+            <strong>Time Period:</strong>
+          </div>
+          <div id="filter-age_group" class="filter-group">
+            <strong>Age Group:</strong>
+          </div>
+          <div id="filter-sex" class="filter-group">
+            <strong>Sex:</strong>
+          </div>
+          <div id="filter-race_eth" class="filter-group">
+            <strong>Race/Ethnicity:</strong>
+          </div>
+          <div id="filter-method" class="filter-group">
+            <strong>Method:</strong>
+          </div>
+        </div>
+      </div>
+      <div id="footnotes" style="margin-top: 20px">Footnotes</div>
     </main>
     <script>
       const requestData = async function () {
@@ -42,25 +81,52 @@
           "data/fatal_suicide_data.csv",
           d3.autoType,
         );
-        console.log(suicideData);
         const regionData = await d3.csv("data/hhs_regions.csv");
-        // const filtered = suicideData.filter(
-        //   (row) =>
-        //     row.period == "2020-2024" &&
-        //     row.age_group == "15-19 years" &&
-        //     row.sex == "M" &&
-        //     row.race_eth == "NH White" &&
-        //     row.method == "All",
-        // );
-        const filtered = suicideData.filter(
-          (row) =>
-            row.period == "2020-2024" &&
-            row.age_group == "10-14 years" &&
-            row.sex == "M" &&
-            row.race_eth == "NH Black" &&
-            row.method == "All",
-        );
-        console.log(filtered);
+        let filtered = [];
+        const filters = ["period", "age_group", "sex", "race_eth", "method"];
+
+        const defaults = {};
+        filters.forEach((col) => {
+          const uniqueValues = Array.from(
+            new Set(suicideData.map((d) => d[col])),
+          ).sort();
+          const filterContainer = d3.select(`#filter-${col}`);
+          const labels = filterContainer
+            .selectAll("label")
+            .data(uniqueValues)
+            .join("label");
+
+          labels
+            .append("input")
+            .attr("type", "radio")
+            .attr("name", `filter-${col}`)
+            .attr("value", (d) => d)
+            .property("checked", (d, i) =>
+              col in defaults ? d === defaults[col] : i === 0,
+            )
+            .on("change", updateChart);
+
+          labels.append("span").text((d) => ` ${d}`);
+        });
+
+        function updateChart() {
+          const activeFilters = {};
+
+          filters.forEach((col) => {
+            const selected = d3
+              .select(`input[name="filter-${col}"]:checked`)
+              .property("value");
+            activeFilters[col] = selected;
+          });
+
+          filtered = suicideData.filter((row) =>
+            filters.every((col) => row[col] === activeFilters[col]),
+          );
+          console.log(activeFilters);
+          console.log(filtered);
+
+          render();
+        }
 
         var mapProjection = d3.geoAlbersUsa();
         var mapPath = d3.geoPath(mapProjection);
@@ -86,7 +152,7 @@
           "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json",
         );
         const statesData = topojson.feature(us, us.objects.states);
-        mapProjection.fitSize([900, 600], statesData);
+        mapProjection.fitSize([800, 550], statesData);
         const regionFIPSLookup = new Map(
           regionData.map((r) => [+r.fips, r.region_code]),
         );
@@ -94,44 +160,90 @@
           .scaleOrdinal()
           .domain(d3.range(1, 11).map((i) => "HHS" + i))
           .range(d3.schemeCategory10);
-        const rateByRegion = new Map(
-          filtered.map((r) => [r.region_code, r.map_crude_rate]),
-        );
-        const statusByRegion = new Map(
-          filtered.map((r) => [r.region_code, r.status]),
-        );
-        const regionColorCrudeRates = d3
-          .scaleSequential(d3.interpolateHslLong("purple", "green"))
-          .domain([0, d3.max(filtered, (d) => d.map_crude_rate)]);
-        mapSvg
+        const mapTooltip = d3
+          .select("body")
+          .append("div")
+          .attr("class", "map-tooltip");
+        const statePaths = mapSvg
+          .append("g")
+          .attr("class", "states")
           .selectAll("path")
           .data(statesData.features)
-          .enter()
-          .append("path")
+          .join("path")
           .attr("d", mapPath)
-          .attr("fill", (d) => {
+          .attr("stroke", "#000");
+        const hatchLayer = mapSvg.append("g").attr("class", "hatches");
+
+        function render() {
+          const rateByRegion = new Map(
+            filtered.map((r) => [r.region_code, r.map_crude_rate]),
+          );
+          const statusByRegion = new Map(
+            filtered.map((r) => [r.region_code, r.status]),
+          );
+          const popByRegion = new Map(
+            filtered.map((r) => [r.region_code, r.population]),
+          );
+          const deathsByRegion = new Map(
+            filtered.map((r) => [r.region_code, r.deaths]),
+          );
+          const cilByRegion = new Map(
+            filtered.map((r) => [r.region_code, r.ci_low]),
+          );
+          const cihByRegion = new Map(
+            filtered.map((r) => [r.region_code, r.ci_high]),
+          );
+          const regionColorCrudeRates = d3
+            .scaleSequential(d3.interpolateHslLong("purple", "green"))
+            .domain([0, d3.max(filtered, (d) => d.map_crude_rate)]);
+
+          statePaths.attr("fill", (d) => {
             const region = regionFIPSLookup.get(+d.id);
             const rate = rateByRegion.get(region);
             const status = statusByRegion.get(region);
             if (status == null || status == "suppressed") return "#ccc";
             if (status == "zero" || rate == 0) return "#fff";
             return regionColorCrudeRates(rate);
-          })
-          .attr("stroke", "#fff");
-        mapSvg
-          .selectAll("path.hatch")
-          .data(
-            statesData.features.filter(
-              (d) =>
-                statusByRegion.get(regionFIPSLookup.get(+d.id)) == "unreliable",
-            ),
-          )
-          .enter()
-          .append("path")
-          .attr("class", "hatch")
-          .attr("d", mapPath)
-          .attr("fill", "url(#unreliableMarking)")
-          .attr("pointer-events", "none");
+          });
+
+          statePaths
+            .on("mouseover", (d) => {
+              mapTooltip
+                .style("opacity", 1)
+                .html(
+                  `<strong>Region: ${regionFIPSLookup.get(+d.id)}</strong><br>` +
+                    `${d.properties.name}<br>` +
+                    `Status: ${statusByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
+                    `Crude Rate: ${rateByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
+                    `Population: ${popByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
+                    `# of Deaths: ${deathsByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
+                    `CI: [${cilByRegion.get(regionFIPSLookup.get(+d.id))}, ${cihByRegion.get(regionFIPSLookup.get(+d.id))}]<br>`,
+                );
+            })
+            .on("mousemove", () => {
+              mapTooltip
+                .style("top", event.pageY - 30 + "px")
+                .style("left", event.pageX + 10 + "px");
+            })
+            .on("mouseout", () => mapTooltip.style("opacity", 0));
+
+          hatchLayer
+            .selectAll("path")
+            .data(
+              statesData.features.filter(
+                (d) =>
+                  statusByRegion.get(regionFIPSLookup.get(+d.id)) ==
+                  "unreliable",
+              ),
+              (d) => d.id,
+            )
+            .join("path")
+            .attr("d", mapPath)
+            .attr("fill", "url(#unreliableMarking)")
+            .attr("pointer-events", "none");
+        }
+
+        updateChart();
       };
       requestData();
     </script>
