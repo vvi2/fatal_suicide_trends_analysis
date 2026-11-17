@@ -1,30 +1,139 @@
+<!doctype html>
+<meta charset="utf-8" />
 <html lang="en">
   <head>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://d3js.org/topojson.v2.min.js"></script>
     <title>Youth suicide rates by HHS region</title>
     <style>
       body {
         margin: 0;
-        font-family: 'Segoe-UI', sans-serif;
+        font-family: "Segoe-UI", sans-serif;
       }
       main {
-        max-width: 980px;
         margin: 0 auto;
-        padding: 24px 16px 48px;
+        padding: 24px 36px 48px;
+        /* outline: 2px solid #000000; */
       }
       h1 {
         font-size: 22px;
-        margin: 0 0 4px;
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>Youth Suicide Rates, by HHS Region: Pre-COVID (2015 - 2019) vs Post-COVID (2020 - 2024)</h1>
+      <h1>
+        Youth Suicide Rates, by HHS Region: Pre-COVID (2015 - 2019) vs
+        Post-COVID (2020 - 2024)
+      </h1>
       <p>Comparing 3 race/ethnic groups</p>
       <p>Crude rate per 100,000 population per year. Source: CDC WONDER.</p>
-
-      <div id="footnotes">Footnotes go here.</div>
+      <svg
+        id="map"
+        height="600"
+        width="900"
+        style="background: #fff; margin-top: 20px; outline: 2px solid #000000"
+      ></svg>
+      <div id="footnotes" style="margin-top: 20px">Footnotes go here.</div>
     </main>
-    <script></script>
+    <script>
+      const requestData = async function () {
+        const suicideData = await d3.csv(
+          "data/fatal_suicide_data.csv",
+          d3.autoType,
+        );
+        console.log(suicideData);
+        const regionData = await d3.csv("data/hhs_regions.csv");
+        // const filtered = suicideData.filter(
+        //   (row) =>
+        //     row.period == "2020-2024" &&
+        //     row.age_group == "15-19 years" &&
+        //     row.sex == "M" &&
+        //     row.race_eth == "NH White" &&
+        //     row.method == "All",
+        // );
+        const filtered = suicideData.filter(
+          (row) =>
+            row.period == "2020-2024" &&
+            row.age_group == "10-14 years" &&
+            row.sex == "M" &&
+            row.race_eth == "NH Black" &&
+            row.method == "All",
+        );
+        console.log(filtered);
+
+        var mapProjection = d3.geoAlbersUsa();
+        var mapPath = d3.geoPath(mapProjection);
+        const mapSvg = d3.select("#map");
+        mapSvg
+          .append("defs")
+          .append("pattern")
+          .attr("id", "unreliableMarking")
+          .attr("patternUnits", "userSpaceOnUse")
+          .attr("width", 6)
+          .attr("height", 6)
+          .attr("patternTransform", "rotate(45)")
+          .append("line")
+          .attr("x1", 0)
+          .attr("y1", 0)
+          .attr("x2", 0)
+          .attr("y2", 6)
+          .attr("stroke", "#000")
+          .attr("stroke-width", 1.5)
+          .attr("stroke-opacity", 0.6);
+
+        const us = await d3.json(
+          "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json",
+        );
+        const statesData = topojson.feature(us, us.objects.states);
+        mapProjection.fitSize([900, 600], statesData);
+        const regionFIPSLookup = new Map(
+          regionData.map((r) => [+r.fips, r.region_code]),
+        );
+        const regionColor = d3
+          .scaleOrdinal()
+          .domain(d3.range(1, 11).map((i) => "HHS" + i))
+          .range(d3.schemeCategory10);
+        const rateByRegion = new Map(
+          filtered.map((r) => [r.region_code, r.map_crude_rate]),
+        );
+        const statusByRegion = new Map(
+          filtered.map((r) => [r.region_code, r.status]),
+        );
+        const regionColorCrudeRates = d3
+          .scaleSequential(d3.interpolateHslLong("purple", "green"))
+          .domain([0, d3.max(filtered, (d) => d.map_crude_rate)]);
+        mapSvg
+          .selectAll("path")
+          .data(statesData.features)
+          .enter()
+          .append("path")
+          .attr("d", mapPath)
+          .attr("fill", (d) => {
+            const region = regionFIPSLookup.get(+d.id);
+            const rate = rateByRegion.get(region);
+            const status = statusByRegion.get(region);
+            if (status == null || status == "suppressed") return "#ccc";
+            if (status == "zero" || rate == 0) return "#fff";
+            return regionColorCrudeRates(rate);
+          })
+          .attr("stroke", "#fff");
+        mapSvg
+          .selectAll("path.hatch")
+          .data(
+            statesData.features.filter(
+              (d) =>
+                statusByRegion.get(regionFIPSLookup.get(+d.id)) == "unreliable",
+            ),
+          )
+          .enter()
+          .append("path")
+          .attr("class", "hatch")
+          .attr("d", mapPath)
+          .attr("fill", "url(#unreliableMarking)")
+          .attr("pointer-events", "none");
+      };
+      requestData();
+    </script>
   </body>
 </html>
