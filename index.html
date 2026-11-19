@@ -2,90 +2,367 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="https://d3js.org/topojson.v2.min.js"></script>
-    <title>Youth suicide rates by HHS region</title>
     <style>
       body {
         margin: 0;
-        font-family: "Segoe-UI", sans-serif;
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        color: #1a1a1a;
+        background: #fff;
       }
       main {
+        max-width: 1440px;
         margin: 0 auto;
-        padding: 24px 36px 48px;
-        /* outline: 2px solid #000000; */
+        padding: 16px 28px 16px;
+        box-sizing: border-box;
       }
       h1 {
         font-size: 22px;
+        line-height: 1.25;
+        margin: 0 0 4px;
+      }
+      .subtitle {
+        margin: 0;
+        color: #555;
+        font-size: 14px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 28px;
+        margin-top: 14px;
+        align-items: start;
+      }
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: calc(100vh - 150px);
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .map-wrap svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: calc(100vh - 150px);
+      }
+      .filter-group {
+        border: 0;
+        margin: 0;
+        padding: 0;
+        min-width: 0;
+      }
+      .filter-group legend,
+      .section-label {
+        padding: 0;
+        margin-bottom: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #555;
+      }
+      .legend-box {
+        border-top: 1px solid #e3e3e3;
+        padding-top: 10px;
+      }
+      .note {
+        margin: 4px 0 0;
+        font-size: 12px;
+        color: #555;
+        line-height: 1.4;
+      }
+      .crisis {
+        margin: 0;
+        padding: 8px 10px;
+        background: #f3f6fa;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.4;
       }
       .map-tooltip {
         position: absolute;
         opacity: 0;
         pointer-events: none;
-        background: rgba(20, 20, 20, 0.9);
-        color: #fff;
+        background: rgba(255, 255, 255, 0.95);
+        color: #000;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
         padding: 8px 12px;
-        border-radius: 4px;
-        font-family: sans-serif;
+        border-radius: 6px;
+        font-family: inherit;
         font-size: 13px;
         transition: opacity 0.15s ease;
+      }
+      .tt-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .tt-region {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .tt-sub {
+        color: #666;
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .tt-rate {
+        font-size: 22px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .tt-rate span {
+        font-size: 12px;
+        font-weight: 400;
+        color: #666;
+      }
+      .tt-ci {
+        color: #555;
+        font-size: 12px;
+      }
+      .tt-grid {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 2px 12px;
+        margin: 8px 0 0;
+        padding-top: 6px;
+        border-top: 1px solid #eee;
+      }
+      .tt-grid dt {
+        color: #666;
+      }
+      .tt-grid dd {
+        margin: 0;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .tt-badge {
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 10px;
+      }
+      .tt-badge.sup {
+        background: #eee;
+        color: #555;
+      }
+      .tt-badge.z {
+        background: #e86d0e;
+        color: #e6f4ea;
+      }
+      .tt-note {
+        margin-top: 6px;
+        font-size: 11px;
+        color: #666;
+      }
+
+      /* Narrow screens: stack sidebar above the map */
+      @media (max-width: 900px) {
+        main {
+          padding: 16px;
+        }
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .sidebar,
+        .map-wrap svg {
+          max-height: none;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>
-        Youth Suicide Rates, by HHS Region: Pre-COVID (2015 - 2019) vs
-        Post-COVID (2020 - 2024)
-      </h1>
-      <p>Comparing 3 race/ethnic groups</p>
-      <p>Crude rate per 100,000 population per year. Source: CDC WONDER.</p>
-      <div class="container" style="display: flex">
-        <svg
-          id="map"
-          height="600"
-          width="900"
-          style="background: #fff; margin-top: 20px"
-        ></svg>
-        <div
-          id="filters"
-          style="
-            display: flex;
-            flex-direction: column;
-            justify-content: space-around;
-            margin-left: 48px;
-          "
-        >
-          <div id="filter-period" class="filter-group">
-            <strong>Time Period:</strong>
+      <header>
+        <h1>
+          Suicide Rates Among Youth Ages 10–19, by HHS Region: Before (2018–19)
+          and During/After COVID-19 (2020–24)
+        </h1>
+        <p class="subtitle">
+          Crude rate per 100,000 population per year · Source: CDC WONDER
+        </p>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <p class="note">
+            Select options to filter the map. Each state is colored by its HHS
+            region (outlined in black); hover for details.
+          </p>
+
+          <fieldset class="filter-group">
+            <legend>Time period (before vs. during/after COVID-19)</legend>
+            <div id="filter-period"></div>
+          </fieldset>
+          <fieldset class="filter-group">
+            <legend>Age group</legend>
+            <div id="filter-age_group"></div>
+          </fieldset>
+          <fieldset class="filter-group">
+            <legend>Sex</legend>
+            <div id="filter-sex"></div>
+          </fieldset>
+          <fieldset class="filter-group">
+            <legend>Race/ethnicity</legend>
+            <div id="filter-race_eth"></div>
+          </fieldset>
+          <fieldset class="filter-group">
+            <legend>Method</legend>
+            <div id="filter-method"></div>
+          </fieldset>
+
+          <div class="legend-box">
+            <div class="section-label">Rate per 100,000 per year</div>
+            <svg id="legend" width="260" height="100"></svg>
+            <p class="note">
+              Colors are comparable across time periods and race/ethnicity. The
+              scale adjusts for age group, sex, and method.
+            </p>
           </div>
-          <div id="filter-age_group" class="filter-group">
-            <strong>Age Group:</strong>
-          </div>
-          <div id="filter-sex" class="filter-group">
-            <strong>Sex:</strong>
-          </div>
-          <div id="filter-race_eth" class="filter-group">
-            <strong>Race/Ethnicity:</strong>
-          </div>
-          <div id="filter-method" class="filter-group">
-            <strong>Method:</strong>
-          </div>
+
+          <p class="crisis">
+            If you or someone you know is struggling, call or text
+            <strong>988</strong> (Suicide &amp; Crisis Lifeline).
+          </p>
+        </aside>
+
+        <div class="map-wrap">
+          <svg
+            id="map"
+            viewBox="0 0 800 550"
+            role="img"
+            aria-label="Map of U.S. states colored by HHS region suicide rate"
+          ></svg>
         </div>
       </div>
-      <div id="footnotes" style="margin-top: 20px">Footnotes</div>
+
+      <strong>Footnotes</strong>
+      <p>
+        <strong>Deaths:</strong> Suicides (ICD-10 underlying cause codes U03,
+        X60–X84, Y87.0) among U.S. residents ages 10–19. Firearm suicides are
+        codes X72–X74; non-firearm suicides are all other codes.
+      </p>
+      <p>
+        <strong>Rates:</strong> Crude rates per 100,000 population per year,
+        pooled over each period (2018–19: 2 years; 2020–24: 5 years). Because
+        the earlier period covers fewer years, its estimates rest on fewer
+        deaths and are less precise.
+      </p>
+      <p>
+        <strong>Suppressed:</strong> CDC suppresses counts and rates based on
+        1–9 deaths to protect confidentiality. These regions are shown in gray.
+      </p>
+      <p>
+        <strong>No deaths:</strong> Regions with zero recorded deaths for the
+        selected group are shown in white.
+      </p>
+      <p>
+        <strong>Regions:</strong> The 10 U.S. Department of Health and Human
+        Services (HHS) regions group states for federal public health
+        administration. Each state is colored by its region's rate. Regions
+        include the 50 states and the District of Columbia; U.S. territories are
+        not included.
+      </p>
+      <p>
+        <strong>Color scale:</strong> The scale is shared across time periods
+        and race/ethnicity so colors can be compared directly when switching
+        those filters. It rescales when age group, sex, or method changes,
+        because rates differ widely across those groups.
+      </p>
+      <p><strong>Source:</strong> CDC WONDER. Data retrieved 11/18/2026.</p>
     </main>
     <script>
       const requestData = async function () {
         const suicideData = await d3.csv(
-          "data/fatal_suicide_data.csv",
+          "data/fatal_suicide_data_18_24.csv",
           d3.autoType,
         );
         const regionData = await d3.csv("data/hhs_regions.csv");
+        const us = await d3.json(
+          "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json",
+        );
+
         let filtered = [];
+        let activeFilters = {};
         const filters = ["period", "age_group", "sex", "race_eth", "method"];
 
         const defaults = {};
+        const displayLabels = {
+          period: {
+            "2018-2019": "2018–19",
+            "2020-2024": "2020–24",
+          },
+          age_group: { "10-14 years": "10–14", "15-19 years": "15–19" },
+          sex: { F: "Female", M: "Male" },
+          race_eth: {
+            "Hispanic (all races)": "Hispanic (any race)",
+            "NH Black": "Non-Hispanic Black",
+            "NH White": "Non-Hispanic White",
+          },
+          method: { All: "All methods" },
+        };
+        const labelFor = (col, v) =>
+          (displayLabels[col] && displayLabels[col][v]) || v;
+
+        const regionFIPSLookup = new Map(
+          regionData.map((r) => [+r.fips, r.region_code]),
+        );
+        const regionOf = (s) => regionFIPSLookup.get(+s.id);
+
+        const fmtInt = d3.format(","),
+          fmtRate = d3.format(".2f");
+        const status = {
+          reliable: { label: null },
+          zero: { label: "No deaths", cls: "z" },
+          suppressed: {
+            label: "Suppressed",
+            cls: "sup",
+            note: "1-9 deaths; suppressed by CDC WONDER for privacy",
+          },
+        };
+
+        var mapProjection = d3.geoAlbersUsa();
+        var mapPath = d3.geoPath(mapProjection);
+        const mapSvg = d3.select("#map");
+        const statesData = topojson.feature(us, us.objects.states);
+        mapProjection.fitSize([800, 550], statesData);
+        const statePaths = mapSvg
+          .append("g")
+          .attr("class", "states")
+          .selectAll("path")
+          .data(statesData.features)
+          .join("path")
+          .attr("d", mapPath);
+        mapSvg
+          .append("path")
+          .attr("class", "region-borders")
+          .datum(
+            topojson.mesh(
+              us,
+              us.objects.states,
+              (a, b) => a === b || regionOf(a) !== regionOf(b),
+            ),
+          )
+          .attr("d", mapPath)
+          .attr("fill", "none")
+          .attr("stroke", "#222")
+          .attr("stroke-width", 2)
+          .attr("stroke-linejoin", "round")
+          .attr("pointer-events", "none");
+        const mapTooltip = d3
+          .select("body")
+          .append("div")
+          .attr("class", "map-tooltip");
+
         filters.forEach((col) => {
           const uniqueValues = Array.from(
             new Set(suicideData.map((d) => d[col])),
@@ -106,12 +383,13 @@
             )
             .on("change", updateChart);
 
-          labels.append("span").text((d) => ` ${d}`);
+          labels
+            .append("span")
+            .text((d) => labelFor(col, d))
+            .style("font-size", "14px");
         });
 
         function updateChart() {
-          const activeFilters = {};
-
           filters.forEach((col) => {
             const selected = d3
               .select(`input[name="filter-${col}"]:checked`)
@@ -122,57 +400,9 @@
           filtered = suicideData.filter((row) =>
             filters.every((col) => row[col] === activeFilters[col]),
           );
-          console.log(activeFilters);
-          console.log(filtered);
 
           render();
         }
-
-        var mapProjection = d3.geoAlbersUsa();
-        var mapPath = d3.geoPath(mapProjection);
-        const mapSvg = d3.select("#map");
-        mapSvg
-          .append("defs")
-          .append("pattern")
-          .attr("id", "unreliableMarking")
-          .attr("patternUnits", "userSpaceOnUse")
-          .attr("width", 6)
-          .attr("height", 6)
-          .attr("patternTransform", "rotate(45)")
-          .append("line")
-          .attr("x1", 0)
-          .attr("y1", 0)
-          .attr("x2", 0)
-          .attr("y2", 6)
-          .attr("stroke", "#000")
-          .attr("stroke-width", 1.5)
-          .attr("stroke-opacity", 0.6);
-
-        const us = await d3.json(
-          "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json",
-        );
-        const statesData = topojson.feature(us, us.objects.states);
-        mapProjection.fitSize([800, 550], statesData);
-        const regionFIPSLookup = new Map(
-          regionData.map((r) => [+r.fips, r.region_code]),
-        );
-        const regionColor = d3
-          .scaleOrdinal()
-          .domain(d3.range(1, 11).map((i) => "HHS" + i))
-          .range(d3.schemeCategory10);
-        const mapTooltip = d3
-          .select("body")
-          .append("div")
-          .attr("class", "map-tooltip");
-        const statePaths = mapSvg
-          .append("g")
-          .attr("class", "states")
-          .selectAll("path")
-          .data(statesData.features)
-          .join("path")
-          .attr("d", mapPath)
-          .attr("stroke", "#000");
-        const hatchLayer = mapSvg.append("g").attr("class", "hatches");
 
         function render() {
           const rateByRegion = new Map(
@@ -181,21 +411,42 @@
           const statusByRegion = new Map(
             filtered.map((r) => [r.region_code, r.status]),
           );
-          const popByRegion = new Map(
-            filtered.map((r) => [r.region_code, r.population]),
+          const metricsByRegion = new Map(
+            filtered.map((r) => [r.region_code, r]),
           );
-          const deathsByRegion = new Map(
-            filtered.map((r) => [r.region_code, r.deaths]),
+          function tooltipHTML(f) {
+            const regionCode = regionFIPSLookup.get(+f.id);
+            const metrics = metricsByRegion.get(regionCode);
+            const head = `<div class="tt-sub">${f.properties.name}</div>`;
+            if (!metrics) return `<div class="tt-region">No data</div>${head}`;
+            const s = status[metrics.status];
+            const hasRate = metrics.status === "reliable";
+            return `
+              <div class="tt-head">
+                <span class="tt-region">${regionCode.replace("HHS", "HHS Region ")}</span>
+                ${s.label ? `<span class="tt-badge ${s.cls}">${s.label}</span>` : ""}
+              </div>${head}
+              <div class="tt-rate">${hasRate ? fmtRate(metrics.map_crude_rate) : metrics.status === "zero" ? "0" : "—"}
+                <span>per 100,000</span></div>
+              ${hasRate ? `<div class="tt-ci">95% CI ${fmtRate(metrics.ci_low)}–${fmtRate(metrics.ci_high)}</div>` : ""}
+              <dl class="tt-grid">
+                <dt>Deaths</dt><dd>${metrics.status === "suppressed" ? "1–9" : fmtInt(metrics.deaths)}</dd>
+                <dt>Population</dt><dd>${fmtInt(metrics.population)}</dd>
+              </dl>
+              ${s.note ? `<div class="tt-note">ⓘ ${s.note}</div>` : ""}`;
+          }
+          const comparable = suicideData.filter((row) =>
+            filters
+              .filter((c) => c !== "period" && c !== "race_eth")
+              .every((c) => row[c] === activeFilters[c]),
           );
-          const cilByRegion = new Map(
-            filtered.map((r) => [r.region_code, r.ci_low]),
-          );
-          const cihByRegion = new Map(
-            filtered.map((r) => [r.region_code, r.ci_high]),
-          );
-          const regionColorCrudeRates = d3
-            .scaleSequential(d3.interpolateHslLong("purple", "green"))
-            .domain([0, d3.max(filtered, (d) => d.map_crude_rate)]);
+          const maxRate = d3.max(comparable, (d) => d.map_crude_rate);
+
+          const color = d3
+            .scaleQuantize()
+            .domain([0, maxRate])
+            .nice()
+            .range(d3.quantize((t) => d3.interpolateBlues(0.2 + 0.8 * t), 5));
 
           statePaths.attr("fill", (d) => {
             const region = regionFIPSLookup.get(+d.id);
@@ -203,44 +454,103 @@
             const status = statusByRegion.get(region);
             if (status == null || status == "suppressed") return "#ccc";
             if (status == "zero" || rate == 0) return "#fff";
-            return regionColorCrudeRates(rate);
+            return color(rate);
           });
+          statePaths
+            .attr("stroke", (d) => {
+              const region = regionFIPSLookup.get(+d.id);
+              const status = statusByRegion.get(region);
+              return status == "zero" ? "#bbb" : "#fff";
+            })
+            .attr("stroke-width", 0.5);
 
           statePaths
             .on("mouseover", (d) => {
-              mapTooltip
-                .style("opacity", 1)
-                .html(
-                  `<strong>Region: ${regionFIPSLookup.get(+d.id)}</strong><br>` +
-                    `${d.properties.name}<br>` +
-                    `Status: ${statusByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
-                    `Crude Rate: ${rateByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
-                    `Population: ${popByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
-                    `# of Deaths: ${deathsByRegion.get(regionFIPSLookup.get(+d.id))}<br>` +
-                    `CI: [${cilByRegion.get(regionFIPSLookup.get(+d.id))}, ${cihByRegion.get(regionFIPSLookup.get(+d.id))}]<br>`,
-                );
+              mapTooltip.style("opacity", 1).html(tooltipHTML(d));
             })
             .on("mousemove", () => {
+              const e = d3.event,
+                n = mapTooltip.node();
+              const flip =
+                e.pageX + 16 + n.offsetWidth >
+                window.scrollX + window.innerWidth;
               mapTooltip
-                .style("top", event.pageY - 30 + "px")
-                .style("left", event.pageX + 10 + "px");
+                .style(
+                  "left",
+                  (flip ? e.pageX - n.offsetWidth - 16 : e.pageX + 16) + "px",
+                )
+                .style(
+                  "top",
+                  Math.max(window.scrollY + 8, e.pageY - n.offsetHeight / 2) +
+                    "px",
+                );
             })
             .on("mouseout", () => mapTooltip.style("opacity", 0));
 
-          hatchLayer
-            .selectAll("path")
-            .data(
-              statesData.features.filter(
-                (d) =>
-                  statusByRegion.get(regionFIPSLookup.get(+d.id)) ==
-                  "unreliable",
-              ),
-              (d) => d.id,
-            )
-            .join("path")
-            .attr("d", mapPath)
-            .attr("fill", "url(#unreliableMarking)")
-            .attr("pointer-events", "none");
+          drawLegend(color);
+        }
+        function drawLegend(color) {
+          const legendSvg = d3.select("#legend");
+          legendSvg.selectAll("*").remove();
+          const w = 48,
+            h = 14,
+            x0 = 10,
+            y0 = 4,
+            rowH = 22;
+          const fmt = d3.format(".1~f");
+
+          const bins = color
+            .range()
+            .map((c) => ({ c, ext: color.invertExtent(c) }));
+          const g = legendSvg
+            .append("g")
+            .attr("transform", `translate(${x0},${y0})`);
+          g.selectAll("rect")
+            .data(bins)
+            .join("rect")
+            .attr("x", (d, i) => i * w)
+            .attr("width", w)
+            .attr("height", h)
+            .attr("fill", (d) => d.c)
+            .attr("stroke", "#fff");
+          g.selectAll("text")
+            .data([bins[0].ext[0], ...bins.map((d) => d.ext[1])])
+            .join("text")
+            .attr("x", (d, i) => i * w)
+            .attr("y", h + 14)
+            .attr("text-anchor", "middle")
+            .attr("font-size", 12)
+            .text(fmt);
+
+          const statuses = [
+            { label: "No deaths recorded", fill: "#fff" },
+            { label: "Suppressed (1–9 deaths)", fill: "#ccc" },
+          ];
+          const sy = y0 + h + 28;
+          const s = legendSvg
+            .append("g")
+            .attr("transform", `translate(${x0 - 8},${sy})`);
+          statuses.forEach((d, i) => {
+            const item = s
+              .append("g")
+              .attr("transform", `translate(0,${i * rowH})`);
+            item
+              .append("rect")
+              .attr("width", h)
+              .attr("height", h)
+              .attr("fill", d.fill)
+              .attr("stroke", "#000")
+              .attr("stroke-width", 0.75);
+            item
+              .append("text")
+              .attr("x", h + 8)
+              .attr("y", h / 2)
+              .attr("dominant-baseline", "central")
+              .attr("font-size", 13)
+              .text(d.label);
+          });
+
+          legendSvg.attr("height", sy + statuses.length * rowH);
         }
 
         updateChart();
